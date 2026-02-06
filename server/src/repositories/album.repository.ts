@@ -411,4 +411,36 @@ export class AlbumRepository {
       .onConflict((oc) => oc.doNothing())
       .execute();
   }
+
+  /**
+   * Get all sub-albums for a given parent album
+   */
+  @GenerateSql({ params: [DummyValue.UUID] })
+  async getSubalbums(parentAlbumId: string) {
+    return this.db
+      .selectFrom('album')
+      .selectAll('album')
+      .where('album.parentAlbumId', '=', parentAlbumId)
+      .where('album.deletedAt', 'is', null)
+      .select(withOwner)
+      .select(withAlbumUsers)
+      .select(withSharedLink)
+      .orderBy('album.createdAt', 'desc')
+      .execute();
+  }
+
+  /**
+   * Get the parent album for a given album
+   */
+  @GenerateSql({ params: [DummyValue.UUID] })
+  async getParentAlbum(albumId: string) {
+    return this.db
+      .selectFrom('album')
+      .selectAll('album')
+      .innerJoin('album as parent', 'album.parentAlbumId', 'parent.id')
+      .selectAll('parent')
+      .where('album.id', '=', albumId)
+      .where('album.deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
 }

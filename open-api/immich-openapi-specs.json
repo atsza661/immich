@@ -2221,6 +2221,60 @@
         "x-immich-state": "Stable"
       }
     },
+    "/albums/{id}/subalbums": {
+      "get": {
+        "description": "Retrieve a list of sub-albums for a given parent album.",
+        "operationId": "getSubalbums",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlbumResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get subalbums",
+        "tags": [
+          "Albums"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "album.read"
+      }
+    },
     "/albums/{id}/user/{userId}": {
       "delete": {
         "description": "Remove a user from an album. Use an ID of \"me\" to leave a shared album.",
@@ -15522,6 +15576,11 @@
             "description": "Owner user ID",
             "type": "string"
           },
+          "parentAlbumId": {
+            "description": "Parent album ID",
+            "nullable": true,
+            "type": "string"
+          },
           "shared": {
             "description": "Is shared album",
             "type": "boolean"
@@ -15530,6 +15589,13 @@
             "description": "Start date (earliest asset)",
             "format": "date-time",
             "type": "string"
+          },
+          "subalbums": {
+            "description": "Sub-albums",
+            "items": {
+              "$ref": "#/components/schemas/AlbumResponseDto"
+            },
+            "type": "array"
           },
           "updatedAt": {
             "description": "Last update date",
@@ -17390,6 +17456,11 @@
           },
           "description": {
             "description": "Album description",
+            "type": "string"
+          },
+          "parentAlbumId": {
+            "description": "Parent album ID for nested albums",
+            "format": "uuid",
             "type": "string"
           }
         },
@@ -24893,6 +24964,12 @@
               }
             ],
             "description": "Asset sort order"
+          },
+          "parentAlbumId": {
+            "description": "Parent album ID for nested albums",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
           }
         },
         "type": "object"

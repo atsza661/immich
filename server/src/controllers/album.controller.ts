@@ -190,4 +190,15 @@ export class AlbumController {
   ): Promise<void> {
     return this.service.removeUser(auth, id, userId);
   }
+
+  @Get(':id/subalbums')
+  @Authenticated({ permission: Permission.AlbumRead })
+  @Endpoint({
+    summary: 'Get subalbums',
+    description: 'Retrieve a list of sub-albums for a given parent album.',
+    history: new HistoryBuilder().added('v1'),
+  })
+  getSubalbums(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<AlbumResponseDto[]> {
+    return this.service.getSubalbums(auth, id);
+  }
 }

@@ -96,6 +96,11 @@ export class AlbumService extends BaseService {
   async create(auth: AuthDto, dto: CreateAlbumDto): Promise<AlbumResponseDto> {
     const albumUsers = dto.albumUsers || [];
 
+    // If parentAlbumId is provided, verify access to the parent album
+    if (dto.parentAlbumId) {
+      await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.parentAlbumId] });
+    }
+
     for (const { userId } of albumUsers) {
       const exists = await this.userRepository.get(userId, {});
       if (!exists) {
@@ -123,6 +128,7 @@ export class AlbumService extends BaseService {
         description: dto.description,
         albumThumbnailAssetId: assetIds[0] || null,
         order: getPreferences(userMetadata).albums.defaultAssetOrder,
+        parentAlbumId: dto.parentAlbumId || null,
       },
       assetIds,
       albumUsers,
@@ -140,6 +146,11 @@ export class AlbumService extends BaseService {
 
     const album = await this.findOrFail(id, { withAssets: true });
 
+    // If parentAlbumId is being updated, verify access to the new parent album
+    if (dto.parentAlbumId !== undefined && dto.parentAlbumId !== null) {
+      await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.parentAlbumId] });
+    }
+
     if (dto.albumThumbnailAssetId) {
       const results = await this.albumRepository.getAssetIds(id, [dto.albumThumbnailAssetId]);
       if (results.size === 0) {
@@ -153,6 +164,7 @@ export class AlbumService extends BaseService {
       albumThumbnailAssetId: dto.albumThumbnailAssetId,
       isActivityEnabled: dto.isActivityEnabled,
       order: dto.order,
+      parentAlbumId: dto.parentAlbumId !== undefined ? dto.parentAlbumId : album.parentAlbumId,
     });
 
     return mapAlbumWithoutAssets({ ...updatedAlbum, assets: album.assets });
@@ -323,6 +335,29 @@ export class AlbumService extends BaseService {
   async updateUser(auth: AuthDto, id: string, userId: string, dto: UpdateAlbumUserDto): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.AlbumShare, ids: [id] });
     await this.albumUserRepository.update({ albumId: id, userId }, { role: dto.role });
+  }
+
+  async getSubalbums(auth: AuthDto, parentAlbumId: string): Promise<AlbumResponseDto[]> {
+    await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [parentAlbumId] });
+    await this.albumRepository.updateThumbnails();
+
+    const subalbums = await this.albumRepository.getSubalbums(parentAlbumId);
+    const results = await this.albumRepository.getMetadataForIds(subalbums.map((album) => album.id));
+    const albumMetadata: Record<string, any> = {};
+
+    for (const metadata of results) {
+      albumMetadata[metadata.albumId] = metadata;
+    }
+
+    return subalbums.map((album) => ({
+      ...mapAlbumWithoutAssets(album),
+      sharedLinks: undefined,
+      startDate: albumMetadata[album.id]?.startDate ?? undefined,
+      endDate: albumMetadata[album.id]?.endDate ?? undefined,
+      assetCount: albumMetadata[album.id]?.assetCount ?? 0,
+      lastModifiedAssetTimestamp: albumMetadata[album.id]?.lastModifiedAssetTimestamp ?? undefined,
+      parentAlbumId: album.parentAlbumId,
+    }));
   }
 
   private async findOrFail(id: string, options: AlbumInfoOptions) {

@@ -6,6 +6,7 @@
   import AlbumMap from '$lib/components/album-page/album-map.svelte';
   import AlbumSummary from '$lib/components/album-page/album-summary.svelte';
   import AlbumTitle from '$lib/components/album-page/album-title.svelte';
+  import SubalbumsList from '$lib/components/album-page/subalbums-list.svelte';
   import ActivityStatus from '$lib/components/asset-viewer/activity-status.svelte';
   import ActivityViewer from '$lib/components/asset-viewer/activity-viewer.svelte';
   import HeaderActionButton from '$lib/components/HeaderActionButton.svelte';
@@ -36,6 +37,7 @@
   import { TimelineManager } from '$lib/managers/timeline-manager/timeline-manager.svelte';
   import type { TimelineAsset } from '$lib/managers/timeline-manager/types';
   import AlbumOptionsModal from '$lib/modals/AlbumOptionsModal.svelte';
+  import CreateSubalbumModal from '$lib/modals/CreateSubalbumModal.svelte';
   import SharedLinkCreateModal from '$lib/modals/SharedLinkCreateModal.svelte';
   import { Route } from '$lib/route';
   import {
@@ -90,8 +92,32 @@
   let timelineManager = $state<TimelineManager>() as TimelineManager;
   let showAlbumUsers = $derived(timelineManager?.showAssetOwners ?? false);
 
+  let subalbums: AlbumResponseDto[] = $state([]);
+  let loadingSubalbums = $state(false);
+
   const assetInteraction = new AssetInteraction();
   const timelineInteraction = new AssetInteraction();
+
+  const loadSubalbums = async () => {
+    try {
+      loadingSubalbums = true;
+      const response = await fetch(`/albums/${album.id}/subalbums`);
+      if (response.ok) {
+        const data: AlbumResponseDto[] = await response.json();
+        subalbums = data;
+      }
+    } catch (error) {
+      console.error('Failed to load subalbums:', error);
+      // Continue gracefully if subalbums can't be loaded
+      subalbums = [];
+    } finally {
+      loadingSubalbums = false;
+    }
+  };
+
+  const handleSubalbumCreated = (newSubalbum: AlbumResponseDto) => {
+    subalbums = [...subalbums, newSubalbum];
+  };
 
   const handleFavorite = async () => {
     try {
@@ -210,6 +236,10 @@
 
   let album = $derived(data.album);
   let albumId = $derived(album.id);
+
+  $effect(() => {
+    loadSubalbums();
+  });
 
   const containsEditors = $derived(album?.shared && album.albumUsers.some(({ role }) => role === AlbumUserRole.Editor));
   const albumUsers = $derived(
@@ -397,6 +427,29 @@
               {/if}
               <!-- ALBUM DESCRIPTION -->
               <AlbumDescription id={album.id} bind:description={album.description} {isOwned} />
+
+              <!-- SUBALBUMS SECTION -->
+              {#if subalbums.length > 0 || isOwned}
+                <SubalbumsList {subalbums} isLoading={loadingSubalbums} />
+
+                {#if isOwned && subalbums.length === 0}
+                  <div class="mt-8 py-8 text-center">
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">{$t('no_subalbums')}</p>
+                    <button
+                      type="button"
+                      onclick={() =>
+                        modalManager.show(CreateSubalbumModal, {
+                          parentAlbum: album,
+                          onCreated: handleSubalbumCreated,
+                        })}
+                      class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+                    >
+                      <Icon icon={mdiPlus} size="20" />
+                      {$t('create_subalbum')}
+                    </button>
+                  </div>
+                {/if}
+              {/if}
             </section>
           {/if}
 

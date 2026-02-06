@@ -62,4 +62,12 @@ export class AlbumTable {
 
   @UpdateIdColumn({ index: true })
   updateId!: Generated<string>;
+
+  @ForeignKeyColumn(() => AlbumTable, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+    comment: 'Parent album ID for nested albums',
+  })
+  parentAlbumId!: string | null;
 }

@@ -6,15 +6,15 @@
   import { mdiRenameOutline } from '@mdi/js';
   import { t } from 'svelte-i18n';
 
-  type Props = {
-    album: AlbumResponseDto;
-    onClose: () => void;
-  };
+  let { album, onClose }: { album: AlbumResponseDto; onClose: () => void } = $props();
 
-  let { album, onClose }: Props = $props();
+  let albumName = $state('');
+  let description = $state('');
 
-  let albumName = $state(album.albumName);
-  let description = $state(album.description);
+  $effect(() => {
+    albumName = album.albumName ?? '';
+    description = album.description ?? '';
+  });
 
   const onSubmit = async () => {
     const success = await handleUpdateAlbum(album, { albumName, description });

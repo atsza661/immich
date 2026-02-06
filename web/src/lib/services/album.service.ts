@@ -238,3 +238,20 @@ export const handleConfirmAlbumDelete = async (album: AlbumResponseDto) => {
 
   return modalManager.showDialog({ prompt });
 };
+
+export const getSubalbumActions = ($t: MessageFormatter, album: AlbumResponseDto) => {
+  const isOwned = get(user).id === album.ownerId;
+
+  const CreateSubalbum: ActionItem = {
+    title: $t('create_subalbum'),
+    type: $t('command'),
+    icon: mdiPlus,
+    color: 'primary',
+    $if: () => isOwned,
+    onAction: () => {
+      modalManager.show(CreateSubalbumModal, { parentAlbum: album });
+    },
+  };
+
+  return { CreateSubalbum };
+};
