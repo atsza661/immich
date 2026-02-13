@@ -44,6 +44,32 @@ export const createAlbumAndRedirect = async (name?: string, assetIds?: string[])
 };
 
 /**
+ * Create a sub-album (nested album inside a parent album)
+ */
+export const createSubAlbum = async (parentId: string, name?: string, assetIds?: string[]) => {
+  try {
+    const newAlbum: AlbumResponseDto = await sdk.createAlbum({
+      createAlbumDto: {
+        albumName: name ?? '',
+        assetIds,
+        parentId,
+      },
+    });
+    return newAlbum;
+  } catch (error) {
+    const $t = get(t);
+    handleError(error, $t('errors.failed_to_create_album'));
+  }
+};
+
+export const createSubAlbumAndRedirect = async (parentId: string, name?: string, assetIds?: string[]) => {
+  const newAlbum = await createSubAlbum(parentId, name, assetIds);
+  if (newAlbum) {
+    await goto(Route.viewAlbum(newAlbum));
+  }
+};
+
+/**
  * -------------
  * Album Sorting
  * -------------

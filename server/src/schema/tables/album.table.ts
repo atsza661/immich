@@ -31,6 +31,14 @@ export class AlbumTable {
   @ForeignKeyColumn(() => UserTable, { onDelete: 'CASCADE', onUpdate: 'CASCADE', nullable: false })
   ownerId!: string;
 
+  @ForeignKeyColumn(() => AlbumTable, {
+    nullable: true,
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+    comment: 'Parent album ID for nested albums',
+  })
+  parentId!: string | null;
+
   @Column({ default: 'Untitled Album' })
   albumName!: Generated<string>;
 

@@ -53,6 +53,7 @@
   import { cancelMultiselect } from '$lib/utils/asset-utils';
   import { handleError } from '$lib/utils/handle-error';
   import { isAlbumsRoute, navigate, type AssetGridRouteSearchParams } from '$lib/utils/navigation';
+  import { createSubAlbumAndRedirect } from '$lib/utils/album-utils';
   import { AlbumUserRole, AssetVisibility, getAlbumInfo, updateAlbumInfo, type AlbumResponseDto } from '@immich/sdk';
   import { CommandPaletteDefaultProvider, Icon, IconButton, modalManager, toastManager } from '@immich/ui';
   import {
@@ -63,6 +64,7 @@
     mdiDeleteOutline,
     mdiDotsVertical,
     mdiDownload,
+    mdiFolderPlus,
     mdiImageOutline,
     mdiImagePlusOutline,
     mdiLink,
@@ -247,6 +249,8 @@
 
   let isOwned = $derived($user.id == album.ownerId);
 
+  let isSubAlbum = $derived(!!album.parentId);
+
   let showActivityStatus = $derived(
     album.albumUsers.length > 0 && !$showAssetViewer && (album.isActivityEnabled || activityManager.commentCount > 0),
   );
@@ -397,6 +401,61 @@
               {/if}
               <!-- ALBUM DESCRIPTION -->
               <AlbumDescription id={album.id} bind:description={album.description} {isOwned} />
+
+              <!-- SUB-ALBUMS SECTION -->
+              {#if album.subAlbums && album.subAlbums.length > 0}
+                <section class="mt-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold">{$t('sub_albums')}</h2>
+                    {#if isOwned}
+                      <IconButton
+                        aria-label={$t('create_sub_album')}
+                        color="primary"
+                        size="small"
+                        shape="round"
+                        icon={mdiFolderPlus}
+                        onclick={() => createSubAlbumAndRedirect(album.id)}
+                      />
+                    {/if}
+                  </div>
+                  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {#each album.subAlbums as subAlbum (subAlbum.id)}
+                      <a
+                        href={Route.viewAlbum(subAlbum)}
+                        class="group relative rounded-xl border border-transparent hover:bg-gray-100 hover:border-gray-200 dark:hover:bg-gray-900 dark:hover:border-gray-800 p-2 transition-colors"
+                      >
+                        <div class="aspect-square rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                          {#if subAlbum.albumThumbnailAssetId}
+                            <img
+                              src={sdk.getAssetMediaUrl({ id: subAlbum.albumThumbnailAssetId, size: 'preview' })}
+                              alt={subAlbum.albumName}
+                              class="w-full h-full object-cover"
+                            />
+                          {:else}
+                            <div class="w-full h-full flex items-center justify-center">
+                              <Icon path={mdiImageOutline} size="large" class="text-gray-400" />
+                            </div>
+                          {/if}
+                        </div>
+                        <p class="mt-2 text-sm font-medium truncate">{subAlbum.albumName}</p>
+                        <p class="text-xs text-gray-500">{$t('items_count', { values: { count: subAlbum.assetCount } })}</p>
+                      </a>
+                    {/each}
+                  </div>
+                </section>
+              {:else if isOwned}
+                <section class="mt-4 flex items-center gap-2">
+                  <p class="text-sm text-gray-500">{$t('no_sub_albums')}</p>
+                  <IconButton
+                    aria-label={$t('create_sub_album')}
+                    color="primary"
+                    size="small"
+                    shape="round"
+                    icon={mdiFolderPlus}
+                    onclick={() => createSubAlbumAndRedirect(album.id)}
+                  />
+                </section>
+              {/if}
             </section>
           {/if}
 

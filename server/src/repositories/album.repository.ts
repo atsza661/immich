@@ -202,6 +202,23 @@ export class AlbumRepository {
       .execute();
   }
 
+  /**
+   * Get sub-albums for a given parent album ID.
+   */
+  @GenerateSql({ params: [DummyValue.UUID] })
+  async getSubAlbums(parentId: string) {
+    return this.db
+      .selectFrom('album')
+      .selectAll('album')
+      .where('album.parentId', '=', parentId)
+      .where('album.deletedAt', 'is', null)
+      .orderBy('album.createdAt', 'desc')
+      .select(withOwner)
+      .select(withAlbumUsers)
+      .select(withSharedLink)
+      .execute();
+  }
+
   async restoreAll(userId: string): Promise<void> {
     await this.db.updateTable('album').set({ deletedAt: null }).where('ownerId', '=', userId).execute();
   }

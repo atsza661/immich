@@ -83,6 +83,20 @@ export class AlbumService extends BaseService {
     const hasSharedLink = album.sharedLinks && album.sharedLinks.length > 0;
     const isShared = hasSharedUsers || hasSharedLink;
 
+    // Get sub-albums
+    const subAlbums = await this.albumRepository.getSubAlbums(album.id);
+    const subAlbumMetadata = await this.albumRepository.getMetadataForIds(subAlbums.map((a) => a.id));
+    const subAlbumMetadataMap: Record<string, AlbumAssetCount> = {};
+    for (const metadata of subAlbumMetadata) {
+      subAlbumMetadataMap[metadata.albumId] = metadata;
+    }
+    const mappedSubAlbums = subAlbums.map((subAlbum) => ({
+      ...mapAlbumWithoutAssets(subAlbum),
+      startDate: subAlbumMetadataMap[subAlbum.id]?.startDate ?? undefined,
+      endDate: subAlbumMetadataMap[subAlbum.id]?.endDate ?? undefined,
+      assetCount: subAlbumMetadataMap[subAlbum.id]?.assetCount ?? 0,
+    }));
+
     return {
       ...mapAlbum(album, withAssets, auth),
       startDate: albumMetadataForIds?.startDate ?? undefined,
@@ -90,6 +104,7 @@ export class AlbumService extends BaseService {
       assetCount: albumMetadataForIds?.assetCount ?? 0,
       lastModifiedAssetTimestamp: albumMetadataForIds?.lastModifiedAssetTimestamp ?? undefined,
       contributorCounts: isShared ? await this.albumRepository.getContributorCounts(album.id) : undefined,
+      subAlbums: mappedSubAlbums,
     };
   }
 
@@ -116,6 +131,11 @@ export class AlbumService extends BaseService {
 
     const userMetadata = await this.userRepository.getMetadata(auth.user.id);
 
+    // If parentId is provided, verify the parent album exists and user has access
+    if (dto.parentId) {
+      await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.parentId] });
+    }
+
     const album = await this.albumRepository.create(
       {
         ownerId: auth.user.id,
@@ -123,6 +143,7 @@ export class AlbumService extends BaseService {
         description: dto.description,
         albumThumbnailAssetId: assetIds[0] || null,
         order: getPreferences(userMetadata).albums.defaultAssetOrder,
+        parentId: dto.parentId || null,
       },
       assetIds,
       albumUsers,
@@ -146,6 +167,18 @@ export class AlbumService extends BaseService {
         throw new BadRequestException('Invalid album thumbnail');
       }
     }
+
+    // If parentId is being changed, verify the new parent album exists and user has access
+    if (dto.parentId !== undefined && dto.parentId !== album.parentId) {
+      if (dto.parentId) {
+        await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.parentId] });
+        // Prevent setting an album as its own parent
+        if (dto.parentId === id) {
+          throw new BadRequestException('Album cannot be its own parent');
+        }
+      }
+    }
+
     const updatedAlbum = await this.albumRepository.update(album.id, {
       id: album.id,
       albumName: dto.albumName,
@@ -153,6 +186,7 @@ export class AlbumService extends BaseService {
       albumThumbnailAssetId: dto.albumThumbnailAssetId,
       isActivityEnabled: dto.isActivityEnabled,
       order: dto.order,
+      parentId: dto.parentId,
     });
 
     return mapAlbumWithoutAssets({ ...updatedAlbum, assets: album.assets });
